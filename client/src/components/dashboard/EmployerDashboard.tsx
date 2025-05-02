@@ -23,6 +23,23 @@ export default function EmployerDashboard() {
     queryKey: ['/api/verifications'],
   });
 
+  const { data: certificates = [] } = useQuery<Certificate[]>({
+    queryKey: ["/api/certificates"],
+  });
+
+  const enrichedVerifications = verifications.map((v) => {
+    const cert = certificates.find(c => c.id === v.certificateId);
+    return {
+      ...v,
+      studentName: cert?.studentName || "",
+      universityName: cert?.universityName || "",
+      degreeName: cert?.degreeName || "",
+      issuedate: cert?.issueDate || "",
+    };
+  });
+  
+
+  console.log(verifications)
   // Handle file upload for verification
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -195,8 +212,8 @@ export default function EmployerDashboard() {
         <h3 className="text-lg font-medium text-secondary-900">Recent Verifications</h3>
         <div className="mt-4 bg-white shadow overflow-hidden sm:rounded-md">
           <ul className="divide-y divide-secondary-200">
-            {verifications.length > 0 ? (
-              verifications.slice(0, 5).map((verification, index) => (
+            {enrichedVerifications.length > 0 ? (
+              enrichedVerifications.slice(0, 5).map((enrichedVerifications, index) => (
                 <li key={index}>
                   <div className="px-4 py-4 sm:px-6">
                     <div className="flex items-center justify-between">
@@ -207,20 +224,20 @@ export default function EmployerDashboard() {
                           </div>
                           <div className="ml-4">
                             <div className="text-sm font-medium text-primary-700">
-                              {verification.studentName} - {verification.degreeName}
+                              {enrichedVerifications.studentName} - {enrichedVerifications.degreeName}
                             </div>
                             <div className="text-sm text-secondary-500">
-                              Issued by: {verification.universityName}
+                              Issued by: {enrichedVerifications.universityName}
                             </div>
                           </div>
                         </div>
                       </div>
                       <div className="flex">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(verification.status)}`}>
-                          {verification.status.charAt(0).toUpperCase() + verification.status.slice(1)}
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(enrichedVerifications.status)}`}>
+                          {enrichedVerifications.status.charAt(0).toUpperCase() + enrichedVerifications.status.slice(1)}
                         </span>
                         <div className="ml-4 text-sm text-secondary-500">
-                          {formatDate(verification.verifiedAt)}
+                          {formatDate(enrichedVerifications.issuedate)}
                         </div>
                       </div>
                     </div>

@@ -251,19 +251,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get all verification records (university or admin only)
-  app.get(
-    "/api/verifications",
-    requireRole(["university", "admin"]),
-    async (req, res) => {
-      try {
-        const verifications = await storage.getAllVerifications();
-        res.json(verifications);
-      } catch (error) {
-        res.status(500).json({ message: "Failed to fetch verifications" });
+  app.get("/api/verifications", requireRole(["student", "university", "employer", "admin"]), async (req, res) => {
+    try {
+      const user = req.user;
+      if (!user || !user.id || !user.role) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
+  
+      const allVerifications = await storage.getAllVerifications();
+  
+      let filteredVerifications = [];
+  
+      switch (user.role) {
+        case "admin":
+          filteredVerifications = allVerifications;
+          break;
+  
+        case "student": {
+          const studentCertificates = await storage.getCertificatesByStudentId(user.id);
+          const certIds = studentCertificates.map(cert => cert.id);
+          filteredVerifications = allVerifications.filter(
+            v => certIds.includes(v.certificateId ?? -1)
+          );
+          break;
+        }
+  
+        case "university": {
+          const universityCertificates = await storage.getCertificatesByUniversityId(user.id);
+          const certIds = universityCertificates.map(cert => cert.id);
+          
+          // Only verifications of university-issued certs AND verified by this university
+          filteredVerifications = allVerifications.filter(
+            v =>
+              certIds.includes(v.certificateId ?? -1) &&
+              v.verifiedByEmail === user.email // Or use university domain check
+          );
+          break;
+        }
+  
+        case "employer":
+          filteredVerifications = allVerifications.filter(
+            v => v.verifiedByEmail === user.email
+          );
+          break;
+  
+        default:
+          return res.status(403).json({ message: "Forbidden" });
+      }
+  
+      res.json(filteredVerifications);
+    } catch (error) {
+      console.error("Verification fetch error:", error);
+      res.status(500).json({ message: "Failed to fetch verifications" });
     }
-  );
+  });
+  
+  
 
+  app.get("/api/verifications/student", requireRole(["student"]), async (req, res) => {
+    try {
+      const studentId = (req.user as { id: number }).id;
+      const allVerifications = await storage.getAllVerifications();
+  
+      const studentCertificates = await storage.getCertificatesByStudentId(studentId);
+  
+      const studentCertIds = studentCertificates.map((cert) => cert.id);
+      const studentVerifications = allVerifications.filter(
+        (v) => v.certificateId !== null && studentCertIds.includes(v.certificateId)
+      );
+  
+      res.json(studentVerifications);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch student verifications" });
+    }
+  });
+  
+
+
+  
   // Blockchain-related routes
   // Get blockchain configuration status - admin only
   app.get(

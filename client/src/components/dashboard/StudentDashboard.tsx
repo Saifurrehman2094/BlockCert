@@ -21,9 +21,13 @@ export default function StudentDashboard() {
 
   // Get all verification history across certificates
   const { data: allVerifications = [] } = useQuery<Verification[]>({
-    queryKey: ["/api/verifications"],
+    queryKey: ["/api/verifications/student"],
     enabled: certificates.length > 0,
   });
+
+  console.log("Certificates:", certificates);
+  console.log("Verifications:", allVerifications);
+
 
   // Map verifications to certificates and flatten the array
   const verificationHistory = certificates.flatMap((cert) =>
